@@ -16,7 +16,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
 import uuid
 import zipfile
@@ -28,12 +27,15 @@ from export_pptx import (
     BrowserSession,
     ExportError,
     build_payload,
+    default_downloads_dir,
     ensure_agent_browser,
     find_download,
     find_manifest,
     log,
     ref_by_name,
+    run_command,
     serve,
+    temporary_directory,
     wait_for_export_dialog,
 )
 
@@ -51,11 +53,8 @@ def ensure_pillow() -> Tuple[Any, Any, Any]:
         return Image, ImageDraw, ImageFont
     except ImportError:
         log("Pillow is required for stitching; installing pillow with pip --user")
-        process = subprocess.run(
+        process = run_command(
             [sys.executable, "-m", "pip", "install", "--user", "pillow"],
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
             timeout=300,
         )
         if process.returncode != 0:
@@ -187,11 +186,8 @@ def ensure_websocket() -> Any:
         return websocket
     except ImportError:
         log("websocket-client is required for dialog automation; installing with pip --user")
-        process = subprocess.run(
+        process = run_command(
             [sys.executable, "-m", "pip", "install", "--user", "websocket-client"],
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
             timeout=300,
         )
         if process.returncode != 0:
@@ -307,7 +303,7 @@ def export_images(
     image_cls, draw_cls, image_font = ensure_pillow()
 
     log(f"manifest: {manifest}")
-    with tempfile.TemporaryDirectory(prefix="open-kimi-ppt-images-") as temp_name:
+    with temporary_directory(prefix="open-kimi-ppt-images-") as temp_name:
         temp_dir = Path(temp_name)
         download_dir = temp_dir / "downloads"
         download_dir.mkdir()
@@ -318,6 +314,7 @@ def export_images(
         server, thread, url = serve(temp_dir)
         session = f"open-kimi-ppt-images-{os.getpid()}-{uuid.uuid4().hex[:8]}"
         browser = BrowserSession(agent_browser, session, temp_dir, download_dir)
+        downloads = default_downloads_dir()
         try:
             log("opening the public Kimi slide editor")
             browser.open(url)
@@ -338,17 +335,15 @@ def export_images(
             select_image_format(browser)
             dialog = wait_for_export_dialog(browser)
 
+            started_at = time.time() - 1.0
             download_ref = ref_by_name(dialog, "下载", "button")
             log("rendering page images in the browser")
-            result = browser.run(
-                ["download", f"@{download_ref}", str(temp_dir / "browser-output.zip")],
-                timeout=300,
-                check=False,
-            )
-            if result.returncode != 0:
-                log("download capture reported a timeout; checking browser output files")
+            browser.run(["click", f"@{download_ref}"], timeout=300)
             downloaded = find_download(
-                (download_dir, temp_dir), timeout=240, accept=is_image_zip
+                (downloads, download_dir, temp_dir),
+                timeout=240,
+                accept=is_image_zip,
+                since=started_at,
             )
         finally:
             browser.close()
@@ -362,6 +357,11 @@ def export_images(
         images = unzip_images(downloaded, output / "pages")
         if keep_download:
             shutil.copy2(downloaded, output / "browser-raw.zip")
+        try:
+            if downloaded.resolve().parent == downloads.resolve():
+                downloaded.unlink(missing_ok=True)
+        except OSError:
+            pass
         overview = stitch_overview(
             images, output / "overview.jpg", image_cls, draw_cls, image_font
         )

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import importlib.util
+import os
 import tempfile
+import time
 import unittest
 import zipfile
 from pathlib import Path
@@ -19,9 +21,9 @@ class ExportPptxTests(unittest.TestCase):
         self.assertEqual(MODULE.parse_version("agent-browser 0.33.2"), (0, 33, 2))
         self.assertEqual(MODULE.parse_version("v1.4.0-beta.1"), (1, 4, 0))
 
-    @patch.object(MODULE.subprocess, "run")
+    @patch.object(MODULE, "run_command")
     @patch.object(MODULE.shutil, "which")
-    def test_old_agent_browser_is_upgraded(self, which, run):
+    def test_old_agent_browser_is_upgraded(self, which, run_command):
         which.side_effect = [
             "/bin/node",
             "/bin/npm",
@@ -29,38 +31,38 @@ class ExportPptxTests(unittest.TestCase):
             "/bin/npm",
             "/bin/agent-browser",
         ]
-        run.side_effect = [
+        run_command.side_effect = [
             MODULE.subprocess.CompletedProcess([], 0, "v22.11.0\n"),
             MODULE.subprocess.CompletedProcess([], 0, "agent-browser 0.17.1\n"),
             MODULE.subprocess.CompletedProcess([], 0, "changed 1 package\n"),
             MODULE.subprocess.CompletedProcess([], 0, "agent-browser 0.33.2\n"),
         ]
         self.assertEqual(MODULE.ensure_agent_browser(), "/bin/agent-browser")
-        self.assertEqual(run.call_args_list[2].args[0], [
+        self.assertEqual(run_command.call_args_list[2].args[0], [
             "/bin/npm", "install", "-g", "agent-browser@latest"
         ])
 
-    @patch.object(MODULE.subprocess, "run")
+    @patch.object(MODULE, "run_command")
     @patch.object(MODULE.shutil, "which")
-    def test_missing_nodejs_raises_clear_error(self, which, run):
+    def test_missing_nodejs_raises_clear_error(self, which, run_command):
         which.return_value = None
         with self.assertRaisesRegex(MODULE.ExportError, "Node.js is not installed"):
             MODULE.ensure_nodejs()
-        run.assert_not_called()
+        run_command.assert_not_called()
 
-    @patch.object(MODULE.subprocess, "run")
+    @patch.object(MODULE, "run_command")
     @patch.object(MODULE.shutil, "which")
-    def test_old_nodejs_raises_clear_error(self, which, run):
+    def test_old_nodejs_raises_clear_error(self, which, run_command):
         which.return_value = "/bin/node"
-        run.return_value = MODULE.subprocess.CompletedProcess([], 0, "v16.20.2\n")
+        run_command.return_value = MODULE.subprocess.CompletedProcess([], 0, "v16.20.2\n")
         with self.assertRaisesRegex(MODULE.ExportError, "Node.js 18\\+ is required"):
             MODULE.ensure_nodejs()
 
-    @patch.object(MODULE.subprocess, "run")
+    @patch.object(MODULE, "run_command")
     @patch.object(MODULE.shutil, "which")
-    def test_missing_npm_raises_clear_error(self, which, run):
+    def test_missing_npm_raises_clear_error(self, which, run_command):
         which.side_effect = ["/bin/node", None]
-        run.return_value = MODULE.subprocess.CompletedProcess([], 0, "v22.11.0\n")
+        run_command.return_value = MODULE.subprocess.CompletedProcess([], 0, "v22.11.0\n")
         with self.assertRaisesRegex(MODULE.ExportError, "npm is not installed"):
             MODULE.ensure_nodejs()
 
@@ -127,6 +129,53 @@ class ExportPptxTests(unittest.TestCase):
                 self.assertIsNone(archive.testzip())
                 slide = archive.read("ppt/slides/slide1.xml")
                 self.assertIn(b"<p:fade/>", slide)
+
+    @patch.object(MODULE.subprocess, "call", return_value=0)
+    def test_run_command_captures_utf8_via_temp_file(self, call):
+        def write_sink(*_args, **kwargs):
+            kwargs["stdout"].write("agent-browser 0.33.2\n")
+            return 0
+
+        call.side_effect = write_sink
+        process = MODULE.run_command(["agent-browser", "--version"], timeout=5)
+        self.assertEqual(process.returncode, 0)
+        self.assertIn("0.33.2", process.stdout)
+        self.assertEqual(call.call_args.kwargs["stderr"], MODULE.subprocess.STDOUT)
+
+    def test_find_download_ignores_files_older_than_since(self):
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name)
+            old = root / "old.pptx"
+            new = root / "new.pptx"
+            for path in (old, new):
+                with zipfile.ZipFile(path, "w") as archive:
+                    archive.writestr(
+                        "[Content_Types].xml",
+                        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+                        '<Override PartName="/ppt/presentation.xml" '
+                        f'ContentType="{MODULE.PPTX_CONTENT_TYPE}"/></Types>',
+                    )
+                    archive.writestr("ppt/presentation.xml", "<p:presentation/>")
+
+            older = time.time() - 60
+            os.utime(old, (older, older))
+            since = time.time() - 5
+            found = MODULE.find_download([root], timeout=2.0, since=since)
+            self.assertEqual(found.resolve(), new.resolve())
+
+    def test_browser_open_does_not_pass_download_path(self):
+        session = MODULE.BrowserSession(
+            "/bin/agent-browser",
+            "test-session",
+            Path("."),
+            Path("/tmp/downloads"),
+        )
+        with patch.object(session, "run") as run:
+            session.open("http://127.0.0.1:9/export_host.html")
+        run.assert_called_once_with(
+            ["open", "http://127.0.0.1:9/export_host.html"],
+            timeout=90,
+        )
 
 
 if __name__ == "__main__":

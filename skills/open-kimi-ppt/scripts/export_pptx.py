@@ -63,16 +63,83 @@ def log(message: str) -> None:
     print(f"[open-kimi-ppt] {message}", file=sys.stderr, flush=True)
 
 
+def run_command(
+    command: Sequence[str],
+    *,
+    cwd: Optional[Path] = None,
+    env: Optional[Dict[str, str]] = None,
+    timeout: int = 90,
+) -> subprocess.CompletedProcess[str]:
+    """Capture merged stdout/stderr via a temp file.
+
+    On Windows, agent-browser's detached daemon can inherit a PIPE handle and
+    prevent EOF, deadlocking ``subprocess.run(stdout=PIPE)``. Decoding with the
+    system locale (GBK on zh-CN Windows) can also raise UnicodeDecodeError.
+    Writing to a UTF-8 file avoids both failures.
+    """
+    handle, sink_path = tempfile.mkstemp(prefix="open-kimi-ppt-", suffix=".log")
+    os.close(handle)
+    sink = Path(sink_path)
+    output = ""
+    try:
+        with sink.open("w", encoding="utf-8", errors="replace") as out:
+            returncode = subprocess.call(
+                list(command),
+                cwd=str(cwd) if cwd is not None else None,
+                env=env,
+                stdout=out,
+                stderr=subprocess.STDOUT,
+                timeout=timeout,
+            )
+        output = sink.read_text(encoding="utf-8", errors="replace")
+    except subprocess.TimeoutExpired as exc:
+        try:
+            output = sink.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            output = ""
+        raise subprocess.TimeoutExpired(
+            cmd=list(command),
+            timeout=timeout,
+            output=output,
+        ) from exc
+    finally:
+        try:
+            sink.unlink(missing_ok=True)
+        except OSError:
+            # WinError 32: daemon may still hold the log file handle.
+            pass
+    return subprocess.CompletedProcess(list(command), returncode, output, None)
+
+
+def temporary_directory(prefix: str) -> Any:
+    # ignore_cleanup_errors avoids masking the real export error when a Windows
+    # browser daemon still holds files under the temp tree (Python 3.10+).
+    try:
+        return tempfile.TemporaryDirectory(prefix=prefix, ignore_cleanup_errors=True)
+    except TypeError:
+        return tempfile.TemporaryDirectory(prefix=prefix)
+
+
+def default_downloads_dir() -> Path:
+    home = Path.home()
+    candidates: List[Path] = []
+    user_profile = os.environ.get("USERPROFILE")
+    if user_profile:
+        candidates.append(Path(user_profile) / "Downloads")
+    candidates.extend((home / "Downloads", home / "下载"))
+    for path in candidates:
+        if path.is_dir():
+            return path
+    return home / "Downloads"
+
+
 def ensure_pyyaml() -> Any:
     try:
         import yaml
     except ImportError:
         log("PyYAML is required; installing pyyaml with pip --user")
-        process = subprocess.run(
+        process = run_command(
             [sys.executable, "-m", "pip", "install", "--user", "pyyaml"],
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
             timeout=300,
         )
         if process.returncode != 0:
@@ -103,13 +170,7 @@ def parse_node_version(output: str) -> Tuple[int, int, int]:
 
 
 def read_agent_browser_version(executable: str) -> Tuple[int, int, int]:
-    process = subprocess.run(
-        [executable, "--version"],
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        timeout=30,
-    )
+    process = run_command([executable, "--version"], timeout=30)
     if process.returncode != 0:
         raise ExportError(f"agent-browser --version failed:\n{process.stdout[-2000:]}")
     return parse_version(process.stdout)
@@ -120,13 +181,7 @@ def ensure_nodejs() -> str:
     if not executable:
         raise ExportError(f"Node.js is not installed or not on PATH. {NODE_INSTALL_HINT}")
 
-    process = subprocess.run(
-        [executable, "--version"],
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        timeout=30,
-    )
+    process = run_command([executable, "--version"], timeout=30)
     if process.returncode != 0:
         raise ExportError(f"node --version failed:\n{process.stdout[-2000:]}")
 
@@ -168,11 +223,8 @@ def ensure_agent_browser() -> str:
     current = "not installed" if version is None else ".".join(map(str, version))
     minimum = ".".join(map(str, MIN_AGENT_BROWSER_VERSION))
     log(f"agent-browser {current} is below {minimum}; installing agent-browser@latest")
-    process = subprocess.run(
+    process = run_command(
         [npm, "install", "-g", "agent-browser@latest"],
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
         timeout=300,
     )
     if process.returncode != 0:
@@ -304,6 +356,8 @@ class BrowserSession:
         self.executable = executable
         self.session = session
         self.cwd = cwd
+        # Kept as a search root fallback; not passed to agent-browser. On Windows,
+        # --download-path can be rewritten to a \\?\ path that cancels Chrome downloads.
         self.download_dir = download_dir
         self.env = os.environ.copy()
         self.env.setdefault("AGENT_BROWSER_DEFAULT_TIMEOUT", "60000")
@@ -317,15 +371,7 @@ class BrowserSession:
         check: bool = True,
     ) -> subprocess.CompletedProcess[str]:
         command = [self.executable, "--session", self.session, *args]
-        process = subprocess.run(
-            command,
-            cwd=self.cwd,
-            env=self.env,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            timeout=timeout,
-        )
+        process = run_command(command, cwd=self.cwd, env=self.env, timeout=timeout)
         if check and process.returncode != 0:
             raise ExportError(
                 f"agent-browser command failed ({process.returncode}): "
@@ -334,9 +380,9 @@ class BrowserSession:
         return process
 
     def open(self, url: str) -> None:
-        self.run(
-            ["--download-path", str(self.download_dir), "open", url], timeout=90
-        )
+        # Avoid --download-path: agent-browser ≤0.33.2 + Chrome may cancel downloads
+        # when given a verbatim Windows path. Files land in the default Downloads folder.
+        self.run(["open", url], timeout=90)
 
     def snapshot(self) -> Dict[str, Any]:
         process = self.run(["snapshot", "-i", "-C", "--json"])
@@ -408,6 +454,8 @@ def find_download(
     search_roots: Iterable[Path],
     timeout: float = 150.0,
     accept: Callable[[Path], bool] = is_pptx,
+    *,
+    since: Optional[float] = None,
 ) -> Path:
     deadline = time.monotonic() + timeout
     last_sizes: Dict[Path, int] = {}
@@ -420,7 +468,10 @@ def find_download(
             candidates.extend(path for path in root.rglob("*") if path.is_file())
         for path in sorted(candidates, key=lambda item: item.stat().st_mtime, reverse=True):
             try:
-                size = path.stat().st_size
+                stat = path.stat()
+                size = stat.st_size
+                if since is not None and stat.st_mtime < since:
+                    continue
             except OSError:
                 continue
             if size == last_sizes.get(path) and size > 0:
@@ -588,7 +639,7 @@ def export_pptx(
         f"defaults: transition={transition}, embed_fonts={'on' if embed_fonts else 'off'}"
     )
 
-    with tempfile.TemporaryDirectory(prefix="open-kimi-ppt-export-") as temp_name:
+    with temporary_directory(prefix="open-kimi-ppt-export-") as temp_name:
         temp_dir = Path(temp_name)
         download_dir = temp_dir / "downloads"
         download_dir.mkdir()
@@ -599,6 +650,7 @@ def export_pptx(
         server, thread, url = serve(temp_dir)
         session = f"open-kimi-ppt-export-{os.getpid()}-{uuid.uuid4().hex[:8]}"
         browser = BrowserSession(agent_browser, session, temp_dir, download_dir)
+        downloads = default_downloads_dir()
         try:
             log("opening the public Kimi slide editor")
             browser.open(url)
@@ -627,16 +679,17 @@ def export_pptx(
             elif embed_fonts:
                 log("warning: the official export dialog exposed no font switch")
 
+            # Plain click (not agent-browser `download`) so Chrome saves to the
+            # default Downloads folder; --download-path is broken on some Windows setups.
+            started_at = time.time() - 1.0
             download_ref = ref_by_name(dialog, "下载", "button")
             log("generating PPTX in the browser")
-            result = browser.run(
-                ["download", f"@{download_ref}", str(temp_dir / "browser-output.pptx")],
-                timeout=180,
-                check=False,
+            browser.run(["click", f"@{download_ref}"], timeout=180)
+            downloaded = find_download(
+                (downloads, download_dir, temp_dir),
+                timeout=90,
+                since=started_at,
             )
-            if result.returncode != 0:
-                log("download capture reported a timeout; checking browser output files")
-            downloaded = find_download((download_dir, temp_dir), timeout=90)
             shutil.copy2(downloaded, output)
             if keep_download:
                 debug_copy = output.with_name(f"{output.stem}.browser-raw.pptx")
@@ -645,6 +698,11 @@ def export_pptx(
                         f"raw debug output already exists (pass --force): {debug_copy}"
                     )
                 shutil.copy2(downloaded, debug_copy)
+            try:
+                if downloaded.resolve().parent == downloads.resolve():
+                    downloaded.unlink(missing_ok=True)
+            except OSError:
+                pass
         finally:
             browser.close()
             server.shutdown()

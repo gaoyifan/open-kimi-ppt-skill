@@ -4,6 +4,14 @@
 
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.1.2] - 2026-08-06
+
+### Fixed
+
+- Fix Chinese-locale Windows export hang / GBK decode errors in `export_pptx.py` / `export_images.py` (capture stdout via temp file + UTF-8)
+- Work around agent-browser `--download-path` silently canceling Chrome downloads: click download and poll the default Downloads folder
+- Stop shipping `__pycache__/*.pyc` in the npm package (list script sources explicitly in `files`)
+
 ## [1.1.1] - 2026-08-06
 
 ### Added

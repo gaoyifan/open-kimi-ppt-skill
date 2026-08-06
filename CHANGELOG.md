@@ -4,6 +4,14 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.1.2] - 2026-08-06
+
+### 修复
+
+- 修复中文 Windows 下 `export_pptx.py` / `export_images.py` 导出卡住或 GBK 解码失败（stdout 改走临时文件 + UTF-8）
+- 规避 agent-browser `--download-path` 导致 Chrome 静默取消下载：改为点击下载并轮询默认 Downloads
+- 修复 npm 包误打入 `__pycache__/*.pyc`（`files` 仅列出脚本源文件）
+
 ## [1.1.1] - 2026-08-06
 
 ### 新增
