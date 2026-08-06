@@ -4,6 +4,23 @@
 
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.1.3] - 2026-08-06
+
+### Added
+
+- Interactive `install` checklist for `.agents` / `.codex` / `.claude` / `.cursor` / `.workbuddy` skill directories (space to multi-select)
+- `-y/--yes` (non-interactive default) and repeatable `--target`
+- `--all` installs only into detected agent directories; missing agents are skipped with a notice instead of being created
+- Windows export auto-starts a persistent debug browser (Chrome, falling back to Edge) to work around agent-browser failing to launch Chrome itself; the instance stays resident and is reused across exports, and `AGENT_BROWSER_CDP` can point to a debug browser you started yourself
+
+### Fixed
+
+- Tolerate files vanishing mid-scan in `find_download` when Chrome renames `.crdownload` entries in Downloads, avoiding `FileNotFoundError` aborting export (Related to #4)
+
+### Changed
+
+- README now steers agents to `npx open-kimi-ppt-skills@latest install -y` instead of cloning the repo
+
 ## [1.1.2] - 2026-08-06
 
 ### Fixed

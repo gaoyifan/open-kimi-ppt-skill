@@ -5,78 +5,64 @@
 [![npm version](https://img.shields.io/npm/v/open-kimi-ppt-skills)](https://www.npmjs.com/package/open-kimi-ppt-skills)
 [![node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 
-An unofficial presentation skill for AI coding agents, reverse-engineered from Kimi Slides. It lets your agent create, edit, replicate, read, and export PPT/PPTX files. **Every run delivers two outputs by default: an editable PPTD project and a ready-to-use PPTX** — fonts embedded and fade page transitions included — with optional on-slide element animations and [preset themes](theme_EN.md), plus a local in-browser PPTD editor with manual PPTX export. Works with Codex, Claude Code, Cursor, WorkBuddy, and any agent that supports the SKILL.md format.
+An unofficial presentation skill for AI coding agents, reverse-engineered from Kimi Slides. It lets your agent create, edit, replicate, read, and export PPT/PPTX files. Each run produces two outputs by default: an editable PPTD project, and a PPTX with embedded fonts and fade page transitions. On-slide element animations and [preset themes](theme_EN.md) are supported, and a local in-browser PPTD editor is included for manual export. Works with Codex, Claude Code, Cursor, WorkBuddy, and any agent that supports the SKILL.md format.
 
 > [!IMPORTANT]
 > This project is implemented by reverse-engineering the Kimi Slides skill, the PPTD format, and the frontend behavior and communication protocol of the publicly accessible web editor. It is not an official Kimi or Moonshot AI project and is not endorsed or supported by them. Public frontend resources and compatibility contracts used by this project may change without notice. Provided for learning and research purposes only.
 
 ## Install
 
-Node.js 18 or later is required.
+Node.js 18 or later is required. **Install with `npx` — do not clone the repository**: the repo ships many images and is heavy, while `npx` only fetches the packaged skill files. The default location is the shared directory `~/.agents/skills/open-kimi-ppt` (Windows: `%USERPROFILE%\.agents\skills\open-kimi-ppt`), which most agents discover with a single install.
 
-**Pick one method — do not run both**, or you may end up with duplicate installs across directories. By default the skill lands in the shared directory `~/.agents/skills/open-kimi-ppt` (Windows: `%USERPROFILE%\.agents\skills\open-kimi-ppt`). For most agents that discover that path, a single install is enough.
+### Option 1: Ask your agent (recommended)
 
-### Option 1: Automatic install (recommended)
+Say "Install the open-kimi-ppt skill for me with npx", or have it run:
 
-Ask your agent with either of these prompts and let it install for you:
-
-```text
-Install the open-kimi-ppt skills from GitHub for me.
+```bash
+npx open-kimi-ppt-skills@latest install -y
 ```
 
-```text
-Install https://github.com/Binaryify/open-kimi-ppt-skill for me.
-```
+**WorkBuddy users**: WorkBuddy can't discover the shared directory. Say "Install the open-kimi-ppt skill for me with npx into WorkBuddy", or have it run:
 
-After that, you usually do **not** need to run `npx ... install` yourself.
+```bash
+# macOS / Linux
+npx open-kimi-ppt-skills@latest install --target ~/.workbuddy/skills
+# Windows
+npx open-kimi-ppt-skills@latest install --target %USERPROFILE%\.workbuddy\skills
+```
 
 ### Option 2: Manual install
 
-Run this in your terminal:
-
 ```bash
+# Interactive checklist (space to select, Enter to confirm)
 npx open-kimi-ppt-skills install
+
+# Non-interactive: shared directory only
+npx open-kimi-ppt-skills install -y
+
+# All detected agent skill directories (missing ones are skipped)
+npx open-kimi-ppt-skills install --all
 ```
 
-Only add `--target` if your agent **does not** pick up `~/.agents/skills` and must use its own skills directory (paths below are for macOS / Linux; on Windows replace `~` with `%USERPROFILE%`, e.g. `%USERPROFILE%\.codex\skills`):
+Directories detected by `--all` and the interactive checklist: `~/.agents/skills`, `~/.codex/skills`, `~/.claude/skills`, `~/.cursor/skills`, `~/.workbuddy/skills`.
+
+### When an agent can't discover the skill
+
+Start with the shared directory instead of installing once per agent. If a specific agent can't discover the skill there, pass its directory explicitly (`--target` may be repeated; on Windows use `%USERPROFILE%` instead of `~`):
 
 ```bash
-# Codex
-npx open-kimi-ppt-skills install --target ~/.codex/skills
-
-# Claude Code
-npx open-kimi-ppt-skills install --target ~/.claude/skills
-
-# Cursor
-npx open-kimi-ppt-skills install --target ~/.cursor/skills
-
-# WorkBuddy
-npx open-kimi-ppt-skills install --target ~/.workbuddy/skills
+npx open-kimi-ppt-skills@latest install --target ~/.codex/skills --target ~/.claude/skills
 ```
-
-> Do not install once per agent by default. Start with the shared directory; only use `--target` for an agent that cannot discover the skill there.
 
 ### Update
 
-When the skill is updated, run install again — it overwrites the local installation:
-
-```bash
-npx open-kimi-ppt-skills@latest install
-```
-
-If you originally installed with `--target`, pass the same path again:
-
-```bash
-npx open-kimi-ppt-skills@latest install --target ~/.claude/skills
-```
-
-You can also ask your agent: `Update the open-kimi-ppt skill for me.` Updating only replaces the skill files; it does not touch PPTD / PPTX projects you already generated.
+Run `npx open-kimi-ppt-skills@latest install -y` again to overwrite the local installation; if you originally used `--target` / `--all`, pass the same flags. Updating only replaces the skill files and does not touch PPTD / PPTX projects you already generated.
 
 ## Usage
 
 ### Generate a presentation with your agent
 
-Once installed, just describe what you need. **You always get two deliverables by default**: the complete, editable PPTD project directory and the matching PPTX file. PPTX generation is skipped only when you explicitly ask for PPTD-only output.
+Once installed, just describe what you need. By default you get both the complete, editable PPTD project directory and the matching PPTX file. PPTX generation is skipped only when you explicitly ask for PPTD-only output.
 
 For more stable quality, put a style in the prompt (e.g. “dark product-launch look”) or attach a reference PPT template; topic-only prompts without style guidance tend to vary more.
 
@@ -135,21 +121,32 @@ npx open-kimi-ppt-skills serve --port 56000
 
 Writable folder access requires a Chromium-based browser with the File System Access API. Other browsers fall back to read-only folder upload. Press `Ctrl+C` to stop the server.
 
+### Windows: a persistent debug browser
+
+On Windows, exporting PPTX automatically starts a **persistent debug browser**. This is by design, not a stray process:
+
+- **Why it's needed**: agent-browser cannot launch Chrome by itself on Windows (the Chrome launcher hands off to a child process and exits immediately, which is misread as a crash), so the export drives an externally started browser instead.
+- **What it is**: your installed Chrome (falling back to Edge), launched with `--remote-debugging-port` (default `9337`) and a dedicated profile at `%TEMP%\okp-cdp-profile`, with the window positioned off-screen so it stays out of the way.
+- **Why it persists**: the instance intentionally keeps running after the export. Relaunching with the same profile joins the existing browser, so repeated exports reuse one instance instead of piling up processes — the design goal is "at most one, reused forever". To get rid of it, just kill the browser process; the next export starts a fresh one.
+- **Take full control**: start your own browser with `--remote-debugging-port=<port>` and set the `AGENT_BROWSER_CDP` environment variable to that port; the script prefers your instance.
+
+macOS and Linux are unaffected.
+
 ## Features
 
-- **PPTD generation**: let your agent generate complete, editable PPTD projects — from scratch, with style transfer, template reuse, or replication from images/PDFs.
-- **Preset themes**: ~30 official-style design systems you can name to apply; full list with previews in [theme_EN.md](theme_EN.md).
-- **Element animations**: Off by default. Add `Require element entrance animations` to the prompt; the agent picks suitable on-slide effects per page.
-- **PPTX generation**: produce a matching PPTX by default, with fonts embedded and fade **page** transitions written automatically (separate from on-slide element animations).
-- **Visual QA**: with a multimodal model, the skill exports every page as an image, stitches them into an overview sheet, and checks each page (distortion, occlusion, out-of-bounds elements, contrast, layout consistency, text overflow) before PPTX export — fixing and re-checking until every page passes.
-- **Online editing**: view and edit local PPTD projects in a browser, with autosave and configurable slide transitions.
-- **Manual export**: export PPTX manually from the editor at any time.
-- **Format conversion**: convert existing PPTX files to PPTD for further editing.
-- **Secure by design**: local editing only reads and writes project directories explicitly authorized by the user.
+- PPTD generation: let your agent generate complete, editable PPTD projects, from scratch, with style transfer, template reuse, or replication from images/PDFs.
+- Preset themes: ~30 official-style design systems you can name to apply; full list with previews in [theme_EN.md](theme_EN.md).
+- Element animations: off by default. Add `Require element entrance animations` to the prompt and the agent picks suitable on-slide effects per page.
+- PPTX generation: a matching PPTX is produced by default, with fonts embedded and fade page transitions written automatically (separate from on-slide element animations).
+- Visual QA: with a multimodal model, the skill exports every page as an image, stitches them into an overview sheet, and checks each page (distortion, occlusion, out-of-bounds elements, contrast, layout consistency, text overflow) before PPTX export, fixing and re-checking until every page passes.
+- Online editing: view and edit local PPTD projects in a browser, with autosave and configurable slide transitions.
+- Manual export: export PPTX manually from the editor at any time.
+- Format conversion: convert existing PPTX files to PPTD for further editing.
+- Secure by design: local editing only reads and writes project directories explicitly authorized by the user.
 
 ## Why open-kimi-ppt
 
-Most PPT skills fall into three buckets: assemble OOXML / pptxgenjs in code, render each slide as a full-bleed image, or ship a swipeable HTML deck. open-kimi-ppt takes a **PPTD intermediate layer + real editable PPTX** path — easy for agents to write, good to look at, and still editable in PowerPoint.
+Most PPT skills fall into three buckets: assemble OOXML / pptxgenjs in code, render each slide as a full-bleed image, or ship a swipeable HTML deck. open-kimi-ppt takes a different path: a PPTD intermediate layer plus real editable PPTX output, meant to be easy for agents to write and still editable in PowerPoint.
 
 | | open-kimi-ppt | Code-built PPTX (e.g. pptxgenjs) | Full-slide image PPT | Web HTML PPT |
 | --- | --- | --- | --- | --- |
@@ -160,15 +157,15 @@ Most PPT skills fall into three buckets: assemble OOXML / pptxgenjs in code, ren
 | Re-editing | Browser visual editor + autosave | Mostly re-run code | Usually regenerate images | Edit HTML source |
 | Best for | Formal PPTX you still need to tweak | Structured reports / template fills | Visually unified poster decks | In-browser talks / launches |
 
-In short:
+Specifically:
 
-1. **DSL built for agents** — PPTD describes theme, layout, and elements in YAML, more stable than raw OOXML / pptxgenjs, and more locally editable than full-slide images.
-2. **Two deliverables by default** — an iterable PPTD project plus a ready-to-open PPTX (embedded fonts, fade page transitions).
-3. **Element animations** — add `Require element entrance animations` to the prompt; the agent chooses effects and timing for you.
-4. **Truly editable PPTX** — text boxes and shapes remain editable in PowerPoint / WPS, unlike image-only decks.
-5. **Local visual editor** — preview, tweak, set transitions, and re-export in the browser without rerunning the whole agent flow.
-6. **Visual QA before export** — full-page screenshots plus an overview sheet catch occlusion, overflow, contrast, and layout issues before PPTX is written.
-7. **Not locked to the official model — lower cost** — unlike official Kimi Slides, you can run this in any compatible agent with cheaper models such as DeepSeek. Even without multimodal vision, a model that follows the PPTD spec can still produce strong decks (multimodal helps more with the visual QA pass).
+- PPTD describes theme, layout, and elements in YAML, which is more stable than raw OOXML / pptxgenjs and easier to edit locally than full-slide images.
+- You get both deliverables by default: an iterable PPTD project plus a ready-to-open PPTX with embedded fonts and fade page transitions.
+- Add `Require element entrance animations` to the prompt and the agent chooses effects and timing for you.
+- Text boxes and shapes in the exported PPTX remain editable in PowerPoint / WPS, unlike image-only decks.
+- You can preview, tweak, set transitions, and re-export in the browser without rerunning the whole agent flow.
+- Before export, full-page screenshots plus an overview sheet are used to catch occlusion, overflow, contrast, and layout issues.
+- It is not locked to the official model, so it costs less. Unlike official Kimi Slides, you can run this in any compatible agent with cheaper models such as DeepSeek. Even without multimodal vision, a model that follows the PPTD spec can still produce decent decks; with a multimodal model you additionally get the visual QA pass.
 
 [![DeepSeek generating a Liquid Glass-style PPT](docs/images/example-deepseek-liquid-glass.png)](docs/images/example-deepseek-liquid-glass.png)
 
@@ -180,7 +177,7 @@ In short:
 
 [![ChatGPT / Codex with 5.6 Luna generating an iPhone 17 Pro PPT](docs/images/example-codex-iphone17pro.png)](docs/images/example-codex-iphone17pro.png)
 
-*Above: an iPhone 17 Pro deck generated with the 5.6 Luna model in ChatGPT / Codex — fast and strong.*
+*Above: an iPhone 17 Pro deck generated with the 5.6 Luna model in ChatGPT / Codex.*
 
 ### Style and themes
 
@@ -189,7 +186,7 @@ By default the agent **does not** auto-apply a fixed theme: without a style cue 
 Browse theme IDs, descriptions, and preview images in **[theme_EN.md](theme_EN.md)**.
 
 > [!TIP]
-> **Best results come from stating a PPT style in the prompt, naming a preset, or attaching a reference PPT / PPTX template.** With a style constraint or template to follow, output quality is clearly better and more stable. Topic-only prompts leave the agent free to invent a look, so results vary more.
+> It helps to state a PPT style in the prompt, name a preset, or attach a reference PPT / PPTX template. With a style constraint or template to follow, output is noticeably more consistent. Topic-only prompts leave the agent to invent a look, so results vary more.
 
 Common approaches:
 

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -31,13 +31,96 @@ test("installs the packaged skill into a custom skills directory", () => {
   }
 });
 
-test("installs into ~/.agents/skills when no target is provided", () => {
+test("installs into ~/.agents/skills when no target is provided (non-interactive)", () => {
   const root = mkdtempSync(join(tmpdir(), "open-kimi-ppt-test-"));
 
   try {
     const result = runCli([], { ...process.env, HOME: root, USERPROFILE: root, CODEX_HOME: undefined });
     assert.equal(result.status, 0, result.stderr);
     assert.equal(existsSync(join(root, ".agents", "skills", "open-kimi-ppt", "SKILL.md")), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("supports -y for non-interactive default install", () => {
+  const root = mkdtempSync(join(tmpdir(), "open-kimi-ppt-test-"));
+
+  try {
+    const result = runCli(["install", "-y"], {
+      ...process.env,
+      HOME: root,
+      USERPROFILE: root,
+      CODEX_HOME: undefined,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(existsSync(join(root, ".agents", "skills", "open-kimi-ppt", "SKILL.md")), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("installs into multiple --target directories", () => {
+  const root = mkdtempSync(join(tmpdir(), "open-kimi-ppt-test-"));
+  const first = join(root, "codex", "skills");
+  const second = join(root, "claude", "skills");
+
+  try {
+    const result = runCli(["install", "--target", first, "--target", second]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(existsSync(join(first, "open-kimi-ppt", "SKILL.md")), true);
+    assert.equal(existsSync(join(second, "open-kimi-ppt", "SKILL.md")), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("--all installs into detected agent directories and skips missing ones", () => {
+  const root = mkdtempSync(join(tmpdir(), "open-kimi-ppt-test-"));
+
+  try {
+    mkdirSync(join(root, ".agents"), { recursive: true });
+    mkdirSync(join(root, ".codex"), { recursive: true });
+    mkdirSync(join(root, ".claude"), { recursive: true });
+
+    const result = runCli(["install", "--all"], {
+      ...process.env,
+      HOME: root,
+      USERPROFILE: root,
+      CODEX_HOME: undefined,
+    });
+    assert.equal(result.status, 0, result.stderr);
+
+    for (const relative of [[".agents", "skills"], [".codex", "skills"], [".claude", "skills"]]) {
+      assert.equal(
+        existsSync(join(root, ...relative, "open-kimi-ppt", "SKILL.md")),
+        true,
+        relative.join("/"),
+      );
+    }
+    for (const missing of [".cursor", ".workbuddy"]) {
+      assert.equal(existsSync(join(root, missing)), false, missing);
+    }
+    assert.match(result.stdout, /Skipped .*\.cursor/);
+    assert.match(result.stdout, /Skipped .*\.workbuddy/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("--all warns and installs nothing when no agent directory exists", () => {
+  const root = mkdtempSync(join(tmpdir(), "open-kimi-ppt-test-"));
+
+  try {
+    const result = runCli(["install", "--all"], {
+      ...process.env,
+      HOME: root,
+      USERPROFILE: root,
+      CODEX_HOME: undefined,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(existsSync(join(root, ".agents")), false);
+    assert.match(result.stderr, /No known agent directories found/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -73,4 +156,13 @@ test("accepts legacy --force without changing overwrite behavior", () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("help documents interactive install and -y for agents", () => {
+  const result = runCli(["install", "--help"]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /space select/);
+  assert.match(result.stdout, /-y, --yes/);
+  assert.match(result.stdout, /--all/);
+  assert.match(result.stdout, /npx open-kimi-ppt-skills@latest install -y/);
 });

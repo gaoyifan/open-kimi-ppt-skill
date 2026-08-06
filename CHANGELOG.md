@@ -4,6 +4,23 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.1.3] - 2026-08-06
+
+### 新增
+
+- `install` 在交互终端下列出 `.agents` / `.codex` / `.claude` / `.cursor` / `.workbuddy` 技能目录，支持空格多选
+- 支持 `-y/--yes`（非交互默认目录）、可重复的 `--target`
+- `--all` 仅装到已检测到的 Agent 目录；对应目录不存在的 Agent 会跳过并提示，不会新建目录
+- Windows 导出自动启动一个常驻调试浏览器（Chrome，未安装时回退 Edge），规避 agent-browser 无法自行拉起 Chrome 导致的导出失败；实例导出后常驻、后续导出复用同一个，也可用 `AGENT_BROWSER_CDP` 指定自己启动的调试浏览器
+
+### 修复
+
+- 修复 `find_download` 在 Downloads 目录扫描时因 `.crdownload` 被 Chrome 重命名而触发 `FileNotFoundError` 导致导出中断（Related to #4）
+
+### 变更
+
+- README 默认指引 AI 通过 `npx open-kimi-ppt-skills@latest install -y` 安装，不再建议 clone 仓库
+
 ## [1.1.2] - 2026-08-06
 
 ### 修复

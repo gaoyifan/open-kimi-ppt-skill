@@ -5,78 +5,64 @@
 [![npm version](https://img.shields.io/npm/v/open-kimi-ppt-skills)](https://www.npmjs.com/package/open-kimi-ppt-skills)
 [![node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 
-逆向 Kimi Slides 实现的非官方演示文稿 Skill：让 AI Coding Agent 能够创建、编辑、复刻、读取并导出 PPT/PPTX。**每次生成默认同时交付两份成果：可继续编辑的 PPTD 项目和开箱即用的 PPTX 成品**（自动嵌入字体、写入淡入淡出翻页切换），支持页内元素动画与[预设主题](theme.md)，并提供本地在线 PPTD 编辑器随时手动导出。支持 Codex、Claude Code、Cursor、WorkBuddy 等任何兼容 SKILL.md 规范的 Agent。
+逆向 Kimi Slides 实现的非官方演示文稿 Skill，让 AI Coding Agent 可以创建、编辑、复刻、读取并导出 PPT/PPTX。每次生成默认产出两份文件：可继续编辑的 PPTD 项目，以及嵌入字体、带淡入淡出翻页切换的 PPTX。支持页内元素动画和[预设主题](theme.md)，附带本地浏览器编辑器，可随时手动导出 PPTX。支持 Codex、Claude Code、Cursor、WorkBuddy 等任何兼容 SKILL.md 规范的 Agent。
 
 > [!IMPORTANT]
 > 本项目通过逆向分析 Kimi Slides Skill、PPTD 格式以及公开网页编辑器的前端行为与通信协议实现，并非 Kimi 或 Moonshot AI 的官方项目，也未获得其认可或支持。项目依赖的公开前端资源和兼容协议可能随 Kimi 更新而失效，仅供学习与研究使用。
 
 ## 安装
 
-需要 Node.js 18 或更高版本。
+需要 Node.js 18 或更高版本。**请用 `npx` 安装，不要 clone 仓库**：仓库图片多、体积大，`npx` 只取打包后的 Skill 文件。默认装到共享目录 `~/.agents/skills/open-kimi-ppt`（Windows 为 `%USERPROFILE%\.agents\skills\open-kimi-ppt`），多数 Agent 装一次即可发现。
 
-**二选一即可，不要两种都做**，否则容易装到多个目录、反复安装。默认会装到跨 Agent 通用目录 `~/.agents/skills/open-kimi-ppt`（Windows 为 `%USERPROFILE%\.agents\skills\open-kimi-ppt`）；多数支持该目录的 Agent 装一次就能用。
+### 方式一：让 AI 安装（推荐）
 
-### 方式一：自动安装（推荐）
-
-直接对 AI 说下面任意一句，让 Agent 帮你装：
-
-```text
-帮我从 github 安装 open-kimi-ppt skills
-```
-
-```text
-帮我安装 https://github.com/Binaryify/open-kimi-ppt-skill
-```
-
-装完后一般无需再手动执行 `npx ... install`。
-
-### 方式二：手动安装
-
-自己在终端执行：
+对 AI 说「帮我用 npx 安装 open-kimi-ppt skill」，或直接让它执行：
 
 ```bash
+npx open-kimi-ppt-skills@latest install -y
+```
+
+**WorkBuddy 用户**：它发现不了共享目录，对 AI 说「帮我用 npx 安装 open-kimi-ppt skill 到 WorkBuddy」，或让它执行：
+
+```bash
+# macOS / Linux
+npx open-kimi-ppt-skills@latest install --target ~/.workbuddy/skills
+# Windows
+npx open-kimi-ppt-skills@latest install --target %USERPROFILE%\.workbuddy\skills
+```
+
+### 方式二：终端手动安装
+
+```bash
+# 交互多选目录（空格选择、回车确认）
 npx open-kimi-ppt-skills install
+
+# 非交互：只装共享目录
+npx open-kimi-ppt-skills install -y
+
+# 装到全部已检测到的 Agent 目录（不存在的会跳过）
+npx open-kimi-ppt-skills install --all
 ```
 
-仅当你的 Agent **不识别** `~/.agents/skills`、必须装到专属目录时，才加 `--target`（以下为 macOS / Linux；Windows 将 `~` 换成 `%USERPROFILE%`，例如 `%USERPROFILE%\.codex\skills`）：
+`--all` 与交互多选会检测以下目录：`~/.agents/skills`、`~/.codex/skills`、`~/.claude/skills`、`~/.cursor/skills`、`~/.workbuddy/skills`。
+
+### Agent 发现不了 Skill 时
+
+先用共享目录，不要默认对每个 Agent 各装一遍；确认某个 Agent 发现不了时，再为它单独指定目录（`--target` 可重复，Windows 下用 `%USERPROFILE%` 代替 `~`）：
 
 ```bash
-# Codex
-npx open-kimi-ppt-skills install --target ~/.codex/skills
-
-# Claude Code
-npx open-kimi-ppt-skills install --target ~/.claude/skills
-
-# Cursor
-npx open-kimi-ppt-skills install --target ~/.cursor/skills
-
-# WorkBuddy
-npx open-kimi-ppt-skills install --target ~/.workbuddy/skills
+npx open-kimi-ppt-skills@latest install --target ~/.codex/skills --target ~/.claude/skills
 ```
-
-> 不要默认对每个 Agent 各装一遍。先用默认目录；确认某个 Agent 发现不了 Skill 时，再对该 Agent 使用 `--target`。
 
 ### 更新
 
-Skill 有更新时，再执行一次安装即可（会直接覆盖本地已安装版本）：
-
-```bash
-npx open-kimi-ppt-skills@latest install
-```
-
-若当初用过 `--target`，更新时带上相同路径：
-
-```bash
-npx open-kimi-ppt-skills@latest install --target ~/.claude/skills
-```
-
-也可以对 AI 说：`帮我更新 open-kimi-ppt skill`。更新只替换 Skill 文件，不会影响已生成的 PPTD / PPTX 项目。
+再执行一次 `npx open-kimi-ppt-skills@latest install -y` 即可覆盖更新；当初用过 `--target` / `--all` 就带上相同参数。更新只替换 Skill 文件，不影响已生成的 PPTD / PPTX 项目。
 
 ## 使用
 
 ### 让 Agent 生成 PPT
 
-安装完成后，直接向 Agent 描述需求即可。**默认交付物始终是两份**：完整的 PPTD 项目目录（可继续编辑）和对应的 PPTX 成品文件；只有明确要求只输出 PPTD 时才会跳过 PPTX 生成。
+安装完成后，直接向 Agent 描述需求即可。默认会同时生成完整的 PPTD 项目目录（可继续编辑）和对应的 PPTX 文件；只有明确要求只输出 PPTD 时才会跳过 PPTX 生成。
 
 为了更稳定的出品，Prompt 里最好带上风格（如「深色产品发布风」），或附上参考 PPT 模板；只写主题、不给风格时效果更容易波动。
 
@@ -147,21 +133,32 @@ npx open-kimi-ppt-skills serve --port 56000
 
 可写目录需要使用支持 File System Access API 的 Chromium 系浏览器；其他浏览器会回退为只读文件夹上传。按 `Ctrl+C` 停止服务。
 
+### Windows：常驻调试浏览器说明
+
+在 Windows 上导出 PPTX 时，脚本会自动启动一个**常驻的调试浏览器**。这是有意设计，不是异常进程：
+
+- **为什么需要**：agent-browser 在 Windows 下无法自行启动 Chrome（Chrome 启动器把进程交接给子进程后立即退出，被误判为崩溃），导出只能改为驱动一个外部启动的浏览器。
+- **它是什么**：优先使用本机 Chrome，未安装时回退到 Edge；以 `--remote-debugging-port`（默认 `9337`）和独立配置目录 `%TEMP%\okp-cdp-profile` 启动，窗口定位在屏幕外，不影响日常使用。
+- **为什么常驻**：导出完成后实例保持运行，下次导出会复用同一个实例，而不是每导一次就多一个浏览器进程——设计目标是「最多一个，反复复用」。若想关掉，直接结束该浏览器进程即可，下次导出会自动重新拉起。
+- **想完全自控**：自行以 `--remote-debugging-port=<端口>` 启动浏览器，并把环境变量 `AGENT_BROWSER_CDP` 设为该端口，脚本会优先使用你自己的实例。
+
+macOS / Linux 无此行为，不受影响。
+
 ## 功能特性
 
-- **PPTD 生成**：让 Agent 生成完整、可继续编辑的 PPTD 项目，支持从零创作、风格迁移、模板复用、图片/PDF 复刻。
-- **预设主题**：内置约 30 套官方同款 design system，点名即可套用；完整列表与预览图见 [theme.md](theme.md)。
-- **元素动画**：默认不加。提示词加上「要求带元素入场动画」即可，由 AI 按页编排合适的入场效果。
-- **PPTX 生成**：默认同步生成 PPTX 成品，自动嵌入字体并写入淡入淡出**翻页**切换（与页内元素动画是两回事）。
-- **视觉质检**：多模态模型在导出 PPTX 前自动导出整份页面图片、拼接总览图逐项核查（变形、遮挡、出界、对比度、排版、文字溢出），问题页面修复后复检，直至全部通过。
-- **在线编辑**：通过浏览器查看和编辑本地 PPTD 项目，自动保存，可配置页面切换动画。
-- **手动导出**：在编辑器中随时手动导出 PPTX。
-- **格式互转**：将现有 PPTX 转换为 PPTD 后继续修改。
-- **安全可控**：本地编辑仅在用户明确授权的项目目录内读写文件。
+- PPTD 生成：让 Agent 生成完整、可继续编辑的 PPTD 项目，支持从零创作、风格迁移、模板复用、图片/PDF 复刻。
+- 预设主题：内置约 30 套官方同款 design system，点名即可套用；完整列表与预览图见 [theme.md](theme.md)。
+- 元素动画：默认不加。提示词加上「要求带元素入场动画」即可，由 AI 按页编排合适的入场效果。
+- PPTX 生成：默认同步生成 PPTX，自动嵌入字体并写入淡入淡出翻页切换（与页内元素动画是两回事）。
+- 视觉质检：多模态模型在导出 PPTX 前自动导出整份页面图片、拼接总览图逐项核查（变形、遮挡、出界、对比度、排版、文字溢出），问题页面修复后复检，直至全部通过。
+- 在线编辑：通过浏览器查看和编辑本地 PPTD 项目，自动保存，可配置页面切换动画。
+- 手动导出：在编辑器中随时手动导出 PPTX。
+- 格式互转：将现有 PPTX 转换为 PPTD 后继续修改。
+- 安全可控：本地编辑仅在用户明确授权的项目目录内读写文件。
 
 ## 为什么选 open-kimi-ppt
 
-常见 PPT Skill 大致分三类：用代码库直接拼 OOXML / pptxgenjs、整页生成图片再塞进 PPTX、或输出网页 HTML 翻页。open-kimi-ppt 走的是 **PPTD 中间层 + 真实可编辑 PPTX** 路线，兼顾 Agent 好写、人好看、PowerPoint 能改。
+常见 PPT Skill 大致分三类：用代码库直接拼 OOXML / pptxgenjs、整页生成图片再塞进 PPTX、或输出网页 HTML 翻页。open-kimi-ppt 走的是 PPTD 中间层 + 真实可编辑 PPTX 这条路线，想让 Agent 好写、人好看、PowerPoint 能改。
 
 | | open-kimi-ppt | 代码拼 PPTX（如 pptxgenjs） | 整页图片 PPT | 网页 HTML PPT |
 | --- | --- | --- | --- | --- |
@@ -172,19 +169,19 @@ npx open-kimi-ppt-skills serve --port 56000
 | 二次编辑 | 浏览器可视化编辑 + 自动保存 | 主要靠改代码重导出 | 基本需重新出图 | 改 HTML 源码 |
 | 适用场景 | 要交可改的正式 PPTX，又要好看 | 结构化汇报、模板填充 | 视觉统一的海报风讲稿 | 浏览器内演讲 / 发布会 |
 
-更具体地说，相对其他方案的优势是：
+具体来说：
 
-1. **中间格式为 Agent 设计**：PPTD 用 YAML 描述主题、布局与元素，比直接写 OOXML / pptxgenjs 更稳，也比「整页渲一张图」更可局部修改。
-2. **默认同交两份成果**：可继续迭代的 PPTD 项目 + 开箱即用的 PPTX（嵌字体、淡入淡出翻页），不是只给半成品。
-3. **支持元素动画**：提示词写「要求带元素入场动画」即可启用；具体效果与节奏由 AI 处理，无需用户点名动画类型。
-4. **PPTX 真能改**：导出后文本框、形状仍可在 PowerPoint / WPS 里编辑，不像图片型 PPT 只能当海报。
-5. **有本地可视化编辑器**：浏览器里预览、微调、配切换动画并手动再导出，不需要每次都让 Agent 重跑全流程。
-6. **导出前强制视觉质检**：整页截图 + 总览图检查遮挡、出界、对比度、溢出等问题，修完再出 PPTX。
-7. **不绑官方模型，成本更低**：相对官方 Kimi Slides，你可以在任意兼容 Agent 里使用 DeepSeek 等低成本模型；即便模型不支持多模态，只要按 PPTD 规范生成，也能做出不错的成品（有多模态时再做视觉质检会更稳）。
+- PPTD 用 YAML 描述主题、布局与元素，比直接写 OOXML / pptxgenjs 更稳，也比整页渲一张图更方便局部修改。
+- 默认同时交付两份文件：可继续迭代的 PPTD 项目，加上嵌字体、带淡入淡出翻页的 PPTX，不是只给半成品。
+- 提示词写「要求带元素入场动画」即可启用元素动画，具体效果与节奏由 AI 处理，不用自己点名动画类型。
+- 导出的 PPTX 里，文本框、形状仍可在 PowerPoint / WPS 中编辑，不像图片型 PPT 只能当海报。
+- 浏览器里可以预览、微调、配置切换动画并再次导出，不用每次都让 Agent 重跑全流程。
+- 导出前会做视觉质检：整页截图加总览图，检查遮挡、出界、对比度、溢出等问题，修完再出 PPTX。
+- 不绑定官方模型，成本更低。相对官方 Kimi Slides，可以在任意兼容 Agent 里使用 DeepSeek 等低成本模型；模型不支持多模态时，按 PPTD 规范生成也能做出像样的成品，有多模态时再做一遍视觉质检会更稳。
 
 [![DeepSeek 生成 Liquid Glass 风格 PPT](docs/images/example-deepseek-liquid-glass.png)](docs/images/example-deepseek-liquid-glass.png)
 
-*上图：在 WorkBuddy 中使用 DeepSeek-V4-Flash 生成 Apple Liquid Glass 风格 PPT 的实际效果。*
+*上图：在 WorkBuddy 中用 DeepSeek-V4-Flash 生成的 Apple Liquid Glass 风格 PPT。*
 
 [![Reasonix + DeepSeek 生成 DJI Pocket 4 Pro PPT](docs/images/example-reasonix-deepseek.png)](docs/images/example-reasonix-deepseek.png)
 
@@ -192,7 +189,7 @@ npx open-kimi-ppt-skills serve --port 56000
 
 [![ChatGPT / Codex 使用 5.6 Luna 生成 iPhone 17 Pro PPT](docs/images/example-codex-iphone17pro.png)](docs/images/example-codex-iphone17pro.png)
 
-*上图：在 ChatGPT / Codex 中使用 5.6 Luna 模型生成 iPhone 17 Pro PPT，又快又好。*
+*上图：在 ChatGPT / Codex 中使用 5.6 Luna 模型生成的 iPhone 17 Pro PPT。*
 
 ### 关于风格与主题
 
@@ -201,7 +198,7 @@ npx open-kimi-ppt-skills serve --port 56000
 完整主题名、风格说明与预览图见 **[theme.md](theme.md)**。
 
 > [!TIP]
-> **强烈建议在 Prompt 里写明 PPT 风格、点名一套 preset，或直接附上参考 PPT / PPTX 模板。** 有风格约束或模板参照时，出品会明显更好、更稳定；只给主题不给风格时，Agent 会自行发挥，效果容易波动。
+> 建议在 Prompt 里写明 PPT 风格、点名一套 preset，或直接附上参考 PPT / PPTX 模板。有风格约束或模板参照时，效果会稳定不少；只给主题不给风格时，Agent 只能自行发挥，容易波动。
 
 常见用法：
 
