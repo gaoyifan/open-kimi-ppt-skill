@@ -208,6 +208,29 @@ class ExportPptxTests(unittest.TestCase):
             timeout=90,
         )
 
+    def test_ensure_debug_chrome_is_windows_only(self):
+        with patch.object(MODULE.sys, "platform", "linux"):
+            self.assertIsNone(MODULE.ensure_debug_chrome())
+
+    @patch.object(MODULE, "cdp_alive", return_value=True)
+    def test_ensure_debug_chrome_prefers_working_explicit_port(self, cdp_alive):
+        with patch.object(MODULE.sys, "platform", "win32"), \
+                patch.dict(MODULE.os.environ, {"AGENT_BROWSER_CDP": "9444"}):
+            self.assertEqual(MODULE.ensure_debug_chrome(), 9444)
+        cdp_alive.assert_called_once_with(9444)
+
+    def test_browser_session_exports_cdp_port_to_env(self):
+        with patch.dict(MODULE.os.environ, {}, clear=False):
+            MODULE.os.environ.pop("AGENT_BROWSER_CDP", None)
+            with_port = MODULE.BrowserSession(
+                "/bin/agent-browser", "s", Path("."), Path("/tmp/d"), cdp_port=9337
+            )
+            self.assertEqual(with_port.env["AGENT_BROWSER_CDP"], "9337")
+            without_port = MODULE.BrowserSession(
+                "/bin/agent-browser", "s", Path("."), Path("/tmp/d")
+            )
+            self.assertNotIn("AGENT_BROWSER_CDP", without_port.env)
+
 
 if __name__ == "__main__":
     unittest.main()

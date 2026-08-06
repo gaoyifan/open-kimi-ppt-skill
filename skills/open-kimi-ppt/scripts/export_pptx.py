@@ -21,6 +21,7 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.request
 import uuid
 import zipfile
 import xml.etree.ElementTree as ET
@@ -243,6 +244,88 @@ def ensure_agent_browser() -> str:
     return executable
 
 
+DEBUG_CHROME_PORT = 9337
+CHROME_CANDIDATES = (
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    str(Path.home() / "AppData" / "Local" / "Google" / "Chrome" / "Application" / "chrome.exe"),
+    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+)
+
+
+def cdp_alive(port: int) -> bool:
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=2):
+            return True
+    except OSError:
+        return False
+
+
+def ensure_debug_chrome() -> Optional[int]:
+    """Return a CDP port for agent-browser to connect to (Windows only).
+
+    On Windows agent-browser cannot launch Chrome itself: the Chrome launcher
+    process hands off to a child and exits, which agent-browser mistakes for a
+    crash ("Chrome exited early without writing DevToolsActivePort"). The
+    export therefore always drives an externally started browser. An
+    already-working AGENT_BROWSER_CDP wins; otherwise a dedicated debug
+    instance is started (or reused) on port 9337. The instance is left running
+    on purpose: relaunching with the same profile joins the existing browser,
+    so repeated exports reuse one instance instead of piling up processes.
+    """
+    if sys.platform != "win32":
+        return None
+
+    explicit = os.environ.get("AGENT_BROWSER_CDP")
+    if explicit:
+        try:
+            if cdp_alive(int(explicit)):
+                return int(explicit)
+        except ValueError:
+            pass
+        log(f"AGENT_BROWSER_CDP={explicit} is not answering; starting a debug browser instead")
+
+    port = DEBUG_CHROME_PORT
+    if cdp_alive(port):
+        return port
+    with socket.socket() as probe:
+        if probe.connect_ex(("127.0.0.1", port)) == 0:
+            # Port taken by something that is not a CDP endpoint.
+            with socket.socket() as spare:
+                spare.bind(("127.0.0.1", 0))
+                port = spare.getsockname()[1]
+
+    executable = next((c for c in CHROME_CANDIDATES if Path(c).is_file()), None)
+    if executable is None:
+        raise ExportError(
+            "no Chrome or Edge found to drive the export; install Google Chrome, "
+            "or start a browser with --remote-debugging-port yourself and set "
+            "AGENT_BROWSER_CDP to that port"
+        )
+    profile = Path(tempfile.gettempdir()) / "okp-cdp-profile"
+    log(f"starting debug browser on port {port}: {executable}")
+    subprocess.Popen(
+        [
+            executable,
+            f"--user-data-dir={profile}",
+            f"--remote-debugging-port={port}",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--window-position=-2400,0",
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+    )
+    deadline = time.monotonic() + 20
+    while time.monotonic() < deadline:
+        if cdp_alive(port):
+            return port
+        time.sleep(0.5)
+    raise ExportError(f"debug browser did not open CDP port {port} within 20s")
+
+
 def find_manifest(source: Path) -> Path:
     source = source.expanduser().resolve()
     if source.is_file():
@@ -352,7 +435,14 @@ def json_result(output: str) -> Dict[str, Any]:
 
 
 class BrowserSession:
-    def __init__(self, executable: str, session: str, cwd: Path, download_dir: Path):
+    def __init__(
+        self,
+        executable: str,
+        session: str,
+        cwd: Path,
+        download_dir: Path,
+        cdp_port: Optional[int] = None,
+    ):
         self.executable = executable
         self.session = session
         self.cwd = cwd
@@ -362,6 +452,8 @@ class BrowserSession:
         self.env = os.environ.copy()
         self.env.setdefault("AGENT_BROWSER_DEFAULT_TIMEOUT", "60000")
         self.env.setdefault("AGENT_BROWSER_IDLE_TIMEOUT_MS", "180000")
+        if cdp_port is not None:
+            self.env["AGENT_BROWSER_CDP"] = str(cdp_port)
 
     def run(
         self,
@@ -638,6 +730,7 @@ def export_pptx(
     if output.exists() and not force:
         raise ExportError(f"output already exists (pass --force to replace it): {output}")
     agent_browser = ensure_agent_browser()
+    cdp_port = ensure_debug_chrome()
 
     log(f"manifest: {manifest}")
     log(
@@ -654,7 +747,7 @@ def export_pptx(
         )
         server, thread, url = serve(temp_dir)
         session = f"open-kimi-ppt-export-{os.getpid()}-{uuid.uuid4().hex[:8]}"
-        browser = BrowserSession(agent_browser, session, temp_dir, download_dir)
+        browser = BrowserSession(agent_browser, session, temp_dir, download_dir, cdp_port)
         downloads = default_downloads_dir()
         try:
             log("opening the public Kimi slide editor")
