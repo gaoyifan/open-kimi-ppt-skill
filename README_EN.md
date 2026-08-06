@@ -1,8 +1,8 @@
-# open-kimi-ppt-skills
+# open-kimi-ppt-skill
 
 [简体中文](README.md) | [English](README_EN.md)
 
-[![npm version](https://img.shields.io/npm/v/open-kimi-ppt-skills)](https://www.npmjs.com/package/open-kimi-ppt-skills)
+[![npm version](https://img.shields.io/npm/v/open-kimi-ppt-skill)](https://www.npmjs.com/package/open-kimi-ppt-skill)
 [![node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 
 An unofficial presentation skill for AI coding agents, reverse-engineered from Kimi Slides. It lets your agent create, edit, replicate, read, and export PPT/PPTX files. Each run produces two outputs by default: an editable PPTD project, and a PPTX with embedded fonts and fade page transitions. On-slide element animations and [preset themes](theme_EN.md) are supported, and a local in-browser PPTD editor is included for manual export. Works with Codex, Claude Code, Cursor, WorkBuddy, and any agent that supports the SKILL.md format.
@@ -19,29 +19,29 @@ Node.js 18 or later is required. **Install with `npx` — do not clone the repos
 Say "Install the open-kimi-ppt skill for me with npx", or have it run:
 
 ```bash
-npx open-kimi-ppt-skills@latest install -y
+npx open-kimi-ppt-skill@latest install -y
 ```
 
 **WorkBuddy users**: WorkBuddy can't discover the shared directory. Say "Install the open-kimi-ppt skill for me with npx into WorkBuddy", or have it run:
 
 ```bash
 # macOS / Linux
-npx open-kimi-ppt-skills@latest install --target ~/.workbuddy/skills
+npx open-kimi-ppt-skill@latest install --target ~/.workbuddy/skills
 # Windows
-npx open-kimi-ppt-skills@latest install --target %USERPROFILE%\.workbuddy\skills
+npx open-kimi-ppt-skill@latest install --target %USERPROFILE%\.workbuddy\skills
 ```
 
 ### Option 2: Manual install
 
 ```bash
 # Interactive checklist (space to select, Enter to confirm)
-npx open-kimi-ppt-skills install
+npx open-kimi-ppt-skill install
 
 # Non-interactive: shared directory only
-npx open-kimi-ppt-skills install -y
+npx open-kimi-ppt-skill install -y
 
 # All detected agent skill directories (missing ones are skipped)
-npx open-kimi-ppt-skills install --all
+npx open-kimi-ppt-skill install --all
 ```
 
 Directories detected by `--all` and the interactive checklist: `~/.agents/skills`, `~/.codex/skills`, `~/.claude/skills`, `~/.cursor/skills`, `~/.workbuddy/skills`.
@@ -51,12 +51,12 @@ Directories detected by `--all` and the interactive checklist: `~/.agents/skills
 Start with the shared directory instead of installing once per agent. If a specific agent can't discover the skill there, pass its directory explicitly (`--target` may be repeated; on Windows use `%USERPROFILE%` instead of `~`):
 
 ```bash
-npx open-kimi-ppt-skills@latest install --target ~/.codex/skills --target ~/.claude/skills
+npx open-kimi-ppt-skill@latest install --target ~/.codex/skills --target ~/.claude/skills
 ```
 
 ### Update
 
-Run `npx open-kimi-ppt-skills@latest install -y` again to overwrite the local installation; if you originally used `--target` / `--all`, pass the same flags. Updating only replaces the skill files and does not touch PPTD / PPTX projects you already generated.
+Run `npx open-kimi-ppt-skill@latest install -y` again to overwrite the local installation; if you originally used `--target` / `--all`, pass the same flags. Updating only replaces the skill files and does not touch PPTD / PPTX projects you already generated.
 
 ## Usage
 
@@ -93,30 +93,30 @@ Use open-kimi-ppt to create a Xiaomi YU7 intro PPT, with images as backgrounds f
 Require element entrance animations.
 ```
 
-See the sample deck at [example/xiaomi-yu7-ppt-animation](example/xiaomi-yu7-ppt-animation) (PPTD project + PPTX; open with `npx open-kimi-ppt-skills serve` to preview animations).
+See the sample deck at [example/xiaomi-yu7-ppt-animation](example/xiaomi-yu7-ppt-animation) (PPTD project + PPTX; open with `npx open-kimi-ppt-skill serve` to preview animations).
 
 ### Edit online and export manually
 
 Prefer asking your agent to start the local editor, for example:
 
 ```text
-Run npx open-kimi-ppt-skills serve for me.
+Run npx open-kimi-ppt-skill serve for me.
 ```
 
 Or run it yourself in a terminal:
 
 ```bash
-npx open-kimi-ppt-skills serve
+npx open-kimi-ppt-skill serve
 ```
 
 Then open <http://127.0.0.1:55173/> and choose a complete project folder containing the `.pptd` manifest, `pages/`, and `media/` to view, edit, and export PPTX in the browser. The bundled [example/dji-pocket4](example/dji-pocket4) project — a complete 18-page deck — is ready to open for a quick tour.
 
 ```bash
 # Open the browser after startup
-npx open-kimi-ppt-skills serve --open
+npx open-kimi-ppt-skill serve --open
 
 # Use another port
-npx open-kimi-ppt-skills serve --port 56000
+npx open-kimi-ppt-skill serve --port 56000
 ```
 
 Writable folder access requires a Chromium-based browser with the File System Access API. Other browsers fall back to read-only folder upload. Press `Ctrl+C` to stop the server.

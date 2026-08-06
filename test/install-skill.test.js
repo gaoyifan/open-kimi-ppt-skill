@@ -7,7 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const cli = join(projectRoot, "bin", "open-kimi-ppt-skills.js");
+const cli = join(projectRoot, "bin", "open-kimi-ppt-skill.js");
 
 function runCli(args, env = process.env) {
   return spawnSync(process.execPath, [cli, ...args], {
@@ -164,5 +164,22 @@ test("help documents interactive install and -y for agents", () => {
   assert.match(result.stdout, /space select/);
   assert.match(result.stdout, /-y, --yes/);
   assert.match(result.stdout, /--all/);
-  assert.match(result.stdout, /npx open-kimi-ppt-skills@latest install -y/);
+  assert.match(result.stdout, /npx open-kimi-ppt-skill@latest install -y/);
+});
+
+test("-h shows help", () => {
+  const result = runCli(["-h"]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Usage:/);
+  assert.match(result.stdout, /-h, --help/);
+  assert.match(result.stdout, /-V, --version/);
+});
+
+test("--version and -V print the package version", () => {
+  const { version } = JSON.parse(readFileSync(join(projectRoot, "package.json"), "utf8"));
+  for (const args of [["--version"], ["-V"], ["serve", "--version"]]) {
+    const result = runCli(args);
+    assert.equal(result.status, 0, `${args.join(" ")}: ${result.stderr}`);
+    assert.equal(result.stdout.trim(), version);
+  }
 });

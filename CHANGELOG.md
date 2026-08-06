@@ -4,6 +4,16 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.2.0] - 2026-08-06
+
+### 新增
+
+- CLI 支持 `-h` / `--help` 与 `-V` / `--version`
+
+### 变更
+
+- npm 包名与 CLI 由 `open-kimi-ppt-skills` 统一为 `open-kimi-ppt-skill`（与 GitHub 仓库名一致）。请改用 `npx open-kimi-ppt-skill@latest`；旧包名将不再更新
+
 ## [1.1.3] - 2026-08-06
 
 ### 新增
@@ -19,7 +29,7 @@
 
 ### 变更
 
-- README 默认指引 AI 通过 `npx open-kimi-ppt-skills@latest install -y` 安装，不再建议 clone 仓库
+- README 默认指引 AI 通过 `npx open-kimi-ppt-skill@latest install -y` 安装，不再建议 clone 仓库
 
 ## [1.1.2] - 2026-08-06
 
@@ -57,7 +67,7 @@
 
 - Skill 工作流增加 **step0 本地前置检测**：生成前检查 Node.js 18+、npm/npx、python3，并提示需要 Chromium 系浏览器
 - 导出脚本在启动时检测 **Node.js 18+** 与 **npm**；缺失或版本过低时给出明确安装指引
-- CLI（`open-kimi-ppt-skills`）启动时校验 Node.js 主版本 ≥ 18
+- CLI（`open-kimi-ppt-skill`）启动时校验 Node.js 主版本 ≥ 18
 - 缺失 **PyYAML** 时自动 `pip install --user pyyaml`（与 Pillow / websocket-client 行为一致）
 
 ### 文档
@@ -70,8 +80,8 @@
 
 ### 新增
 
-- 首次发布 `open-kimi-ppt-skills`
+- 首次发布 `open-kimi-ppt-skill`
 - PPTD 生成 / 编辑 / 复刻，默认同时交付可编辑 PPTD 项目与 PPTX 成品
 - 浏览器侧导出 PPTX（嵌字体、淡入淡出切换），导出前可选多模态视觉质检
-- 本地在线 PPTD 编辑器（`npx open-kimi-ppt-skills serve`）
+- 本地在线 PPTD 编辑器（`npx open-kimi-ppt-skill serve`）
 - CLI 安装 Skill 到 `~/.agents/skills`（可用 `--target` 指定其他 Agent 目录）

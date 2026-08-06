@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { cpSync, existsSync, mkdtempSync, mkdirSync, renameSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { spawn } from "node:child_process";
@@ -12,6 +12,7 @@ const SKILL_NAME = "open-kimi-ppt";
 const MIN_NODE_MAJOR = 18;
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceDirectory = join(packageRoot, "skills", SKILL_NAME);
+const packageVersion = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")).version;
 
 const KNOWN_TARGETS = [
   { id: "agents", label: "Shared / default", relative: [".agents", "skills"] },
@@ -35,12 +36,13 @@ function printHelp(command) {
     console.log(`Start the local PPTD editor and exporter.
 
 Usage:
-  open-kimi-ppt-skills serve [options]
+  open-kimi-ppt-skill serve [options]
 
 Options:
   --port <number>  HTTP port (default: 55173)
   --open           Open the editor in the default browser
   -h, --help       Show this help
+  -V, --version    Show version
 `);
     return;
   }
@@ -48,8 +50,8 @@ Options:
   console.log(`Install ${SKILL_NAME} for your AI coding agent or start its local editor.
 
 Usage:
-  open-kimi-ppt-skills [install] [options]
-  open-kimi-ppt-skills serve [options]
+  open-kimi-ppt-skill [install] [options]
+  open-kimi-ppt-skill serve [options]
 
 Install options:
   --target <directory>  Skills directory (repeatable)
@@ -57,16 +59,21 @@ Install options:
   --all                 Install to all detected agent skill directories
                         (agents whose home directory is missing are skipped)
   -h, --help            Show this help
+  -V, --version         Show version
 
 In an interactive terminal (no --target / --yes / --all), a checklist is shown:
   ↑/↓ move  space select  a all  enter confirm
 
 For agents / CI, prefer:
-  npx open-kimi-ppt-skills@latest install -y
+  npx open-kimi-ppt-skill@latest install -y
 
 Re-running install replaces an existing open-kimi-ppt installation.
-Run "open-kimi-ppt-skills serve --help" for server options.
+Run "open-kimi-ppt-skill serve --help" for server options.
 `);
+}
+
+function printVersion() {
+  console.log(packageVersion);
 }
 
 function parseArguments(arguments_) {
@@ -119,6 +126,11 @@ function parseArguments(arguments_) {
 
     if (argument === "--help" || argument === "-h") {
       options.help = true;
+      continue;
+    }
+
+    if (argument === "--version" || argument === "-V") {
+      options.version = true;
       continue;
     }
 
@@ -340,6 +352,10 @@ async function installSkill(options) {
 async function main() {
   assertNodeVersion();
   const options = parseArguments(process.argv.slice(2));
+  if (options.version) {
+    printVersion();
+    return;
+  }
   if (options.help) {
     printHelp(options.command);
     return;

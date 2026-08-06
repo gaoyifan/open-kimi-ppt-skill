@@ -4,6 +4,16 @@
 
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-08-06
+
+### Added
+
+- CLI supports `-h` / `--help` and `-V` / `--version`
+
+### Changed
+
+- Renamed the npm package and CLI from `open-kimi-ppt-skills` to `open-kimi-ppt-skill` to match the GitHub repo. Use `npx open-kimi-ppt-skill@latest` going forward; the old package name will no longer receive updates
+
 ## [1.1.3] - 2026-08-06
 
 ### Added
@@ -19,7 +29,7 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- README now steers agents to `npx open-kimi-ppt-skills@latest install -y` instead of cloning the repo
+- README now steers agents to `npx open-kimi-ppt-skill@latest install -y` instead of cloning the repo
 
 ## [1.1.2] - 2026-08-06
 
@@ -57,7 +67,7 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 - Skill workflow **step0 prerequisite check**: verify Node.js 18+, npm/npx, and python3 before generation; note that a Chromium-based browser is required for export
 - Export scripts check **Node.js 18+** and **npm** at startup, with clear install guidance when missing or too old
-- CLI (`open-kimi-ppt-skills`) refuses to start when the Node.js major version is below 18
+- CLI (`open-kimi-ppt-skill`) refuses to start when the Node.js major version is below 18
 - Auto-install **PyYAML** via `pip install --user pyyaml` when missing (same pattern as Pillow / websocket-client)
 
 ### Docs
@@ -70,8 +80,8 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- Initial release of `open-kimi-ppt-skills`
+- Initial release of `open-kimi-ppt-skill`
 - PPTD create / edit / replicate, delivering both an editable PPTD project and a PPTX by default
 - Browser-side PPTX export (embedded fonts, fade transitions) with optional multimodal visual QA before export
-- Local in-browser PPTD editor (`npx open-kimi-ppt-skills serve`)
+- Local in-browser PPTD editor (`npx open-kimi-ppt-skill serve`)
 - CLI to install the skill into `~/.agents/skills` (or another agent directory via `--target`)
