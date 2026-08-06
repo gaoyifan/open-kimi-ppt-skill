@@ -163,6 +163,37 @@ class ExportPptxTests(unittest.TestCase):
             found = MODULE.find_download([root], timeout=2.0, since=since)
             self.assertEqual(found.resolve(), new.resolve())
 
+    def test_find_download_survives_files_vanishing_mid_scan(self):
+        # Chrome renames "*.crdownload" files away between directory listing
+        # and stat(); a vanished file must be skipped, not crash the export.
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name)
+            deck = root / "deck.pptx"
+            with zipfile.ZipFile(deck, "w") as archive:
+                archive.writestr(
+                    "[Content_Types].xml",
+                    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+                    '<Override PartName="/ppt/presentation.xml" '
+                    f'ContentType="{MODULE.PPTX_CONTENT_TYPE}"/></Types>',
+                )
+                archive.writestr("ppt/presentation.xml", "<p:presentation/>")
+            ghost = root / "ghost.crdownload"
+            ghost.write_bytes(b"partial download")
+
+            real_stat = Path.stat
+            seen = {"count": 0}
+
+            def racy_stat(self, **kwargs):
+                if self.name == "ghost.crdownload":
+                    seen["count"] += 1
+                    if seen["count"] > 1:
+                        raise FileNotFoundError(2, "vanished mid-scan", str(self))
+                return real_stat(self, **kwargs)
+
+            with patch.object(Path, "stat", racy_stat):
+                found = MODULE.find_download([root], timeout=2.0)
+            self.assertEqual(found.resolve(), deck.resolve())
+
     def test_browser_open_does_not_pass_download_path(self):
         session = MODULE.BrowserSession(
             "/bin/agent-browser",

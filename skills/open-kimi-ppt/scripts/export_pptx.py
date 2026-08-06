@@ -461,18 +461,23 @@ def find_download(
     last_sizes: Dict[Path, int] = {}
     stable: Dict[Path, int] = {}
     while time.monotonic() < deadline:
-        candidates: List[Path] = []
+        # Snapshot stats while collecting and tolerate races everywhere: the
+        # search roots include the live Downloads folder, where Chrome renames
+        # .crdownload files away between directory listing and stat().
+        entries: List[Tuple[Path, float, int]] = []
         for root in search_roots:
             if not root.exists():
                 continue
-            candidates.extend(path for path in root.rglob("*") if path.is_file())
-        for path in sorted(candidates, key=lambda item: item.stat().st_mtime, reverse=True):
-            try:
-                stat = path.stat()
-                size = stat.st_size
-                if since is not None and stat.st_mtime < since:
+            for path in root.rglob("*"):
+                if not path.is_file():
                     continue
-            except OSError:
+                try:
+                    info = path.stat()
+                except OSError:
+                    continue
+                entries.append((path, info.st_mtime, info.st_size))
+        for path, mtime, size in sorted(entries, key=lambda entry: entry[1], reverse=True):
+            if since is not None and mtime < since:
                 continue
             if size == last_sizes.get(path) and size > 0:
                 stable[path] = stable.get(path, 0) + 1
