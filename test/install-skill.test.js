@@ -24,6 +24,7 @@ test("installs the packaged skill into a custom skills directory", () => {
     const result = runCli(["install", "--target", target]);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(existsSync(join(target, "open-kimi-ppt", "SKILL.md")), true);
+    assert.equal(existsSync(join(target, "open-kimi-ppt", "scripts", "export_pptx_local.py")), true);
     assert.equal(existsSync(join(target, "open-kimi-ppt", "scripts", "export_pptx.py")), true);
     assert.equal(existsSync(join(target, "open-kimi-ppt", "_user_meta.json")), false);
   } finally {
