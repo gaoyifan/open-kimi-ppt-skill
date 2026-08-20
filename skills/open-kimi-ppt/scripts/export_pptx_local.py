@@ -11,13 +11,12 @@ import tempfile
 from pathlib import Path
 from typing import Optional, Sequence
 
-import yaml
 from PIL import Image
 from pptx import Presentation
 from pptx.util import Inches
 
 from export_images import export_images
-from export_pptx import ExportError, find_manifest, patch_transitions, verify_output
+from export_pptx import ExportError, find_manifest, patch_transitions, read_yaml_mapping, verify_output
 
 
 def export_pptx(
@@ -32,7 +31,7 @@ def export_pptx(
         raise ExportError(f"output already exists (pass --force): {output}")
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    manifest_data = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    _, manifest_data = read_yaml_mapping(manifest)
     title = str(manifest_data.get("title") or manifest.stem)
 
     with tempfile.TemporaryDirectory(prefix="open-kimi-ppt-local-") as temp_name:
